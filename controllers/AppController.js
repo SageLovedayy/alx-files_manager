@@ -1,5 +1,3 @@
-// controllers/AppController.js
-
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
 
@@ -32,4 +30,4 @@ class AppController {
   }
 }
 
-module.exports = AppController;
+export default AppController;
