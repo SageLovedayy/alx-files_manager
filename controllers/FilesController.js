@@ -9,11 +9,12 @@ import redisClient from '../utils/redis';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 const mime = require('mime-types');
+const Bull = require('bull');
+const fileQueue = new Bull('fileQueue');
 
 class FilesController {
   static async postUpload(req, res) {
     const { name, type, parentId, isPublic, data } = req.body;
-
     const { userId } = req;
 
     if (!name) {
@@ -25,7 +26,7 @@ class FilesController {
     const validTypes = ['folder', 'file', 'image'];
     if (!type || !validTypes.includes(type)) {
       return res.status(400).json({
-        error: 'Missing type',
+        error: 'Missing or invalid type',
       });
     }
 
@@ -90,7 +91,18 @@ class FilesController {
       };
 
       const result = await filesCollection.insertOne(newFile);
-      const savedFile = result.insertedId; // Changed from result.ops[0] to result.insertedId
+      const savedFile = result.insertedId;
+
+      // Start background processing for image thumbnails if the file is an image
+      if (type === 'image') {
+        const fileName = crypto.randomUUID();
+        localPath = path.join(FOLDER_PATH, fileName);
+        const buffer = Buffer.from(data, 'base64');
+        fs.writeFileSync(localPath, buffer);
+
+        // Add a job to the queue for generating thumbnails
+        fileQueue.add({ userId, fileId: savedFile });
+      }
 
       return res.status(201).json({
         id: savedFile,
@@ -279,6 +291,7 @@ class FilesController {
   static async getFile(req, res) {
     const token = req.headers['x-token'];
     const fileId = req.params.id;
+    const size = parseInt(req.query.size, 10);
 
     if (!ObjectId.isValid(fileId)) {
       return res.status(404).json({ error: 'Not found' });
@@ -311,16 +324,41 @@ class FilesController {
           .json({ error: "A folder doesn't have content" });
       }
 
-      if (!file.localPath || !fs.existsSync(file.localPath)) {
+      // Determine the correct file path
+      let filePath = file.localPath;
+      console.log('Initial file path:', filePath);
+
+      if (file.type === 'image' && size) {
+        if (![500, 250, 100].includes(size)) {
+          return res
+            .status(400)
+            .json({ error: 'Invalid size parameter' });
+        }
+
+        filePath = `${file.localPath}_${size}.png`; // Ensure correct extension
+        console.log('Thumbnail file path:', filePath);
+
+        if (!fs.existsSync(filePath)) {
+          return res.status(404).json({ error: 'Not found' });
+        }
+      } else if (!fs.existsSync(file.localPath)) {
+        console.log('Original file path:', file.localPath);
         return res.status(404).json({ error: 'Not found' });
       }
 
       const mimeType =
-        mime.lookup(file.name) || 'application/octet-stream';
-
+        mime.lookup(filePath) || 'application/octet-stream';
       res.setHeader('Content-Type', mimeType);
+      console.log('Serving file with MIME type:', mimeType);
 
-      return res.status(200).sendFile(file.localPath);
+      res.status(200).sendFile(path.resolve(filePath), (err) => {
+        if (err) {
+          console.error('Error serving file:', err);
+          return res
+            .status(500)
+            .json({ error: 'Internal Server Error' });
+        }
+      });
     } catch (error) {
       console.error('Error in getFile:', error);
       return res.status(500).json({ error: 'Internal Server Error' });
