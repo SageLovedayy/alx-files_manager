@@ -27,4 +27,8 @@ router.post('/files', authMiddleware, FilesController.postUpload);
 
 router.get('/files/:id', authMiddleware, FilesController.getShow);
 router.get('/files', authMiddleware, FilesController.getIndex);
+
+router.put('/files/:id/publish', FilesController.putPublish);
+router.put('/files/:id/unpublish', FilesController.putUnpublish);
+
 module.exports = router;
