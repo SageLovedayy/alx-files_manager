@@ -1,5 +1,6 @@
 {
-  "printWidth": 80,
+  "curly": "multiline",
+  "printWidth": 70,
   "tabWidth": 2,
   "useTabs": false,
   "semi": true,
@@ -12,5 +13,3 @@
   "jsxSingleQuote": false,
   "htmlWhitespaceSensitivity": "css"
 }
-
-

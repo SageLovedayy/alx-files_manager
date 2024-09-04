@@ -2,6 +2,7 @@ import UsersController from '../controllers/UsersController';
 import AppController from '../controllers/AppController';
 import AuthController from '../controllers/AuthController';
 import authMiddleware from '../middleware/authMiddleware';
+import FilesController from '../controllers/FilesController';
 
 const express = require('express');
 
@@ -17,4 +18,6 @@ router.get('/users/me', authMiddleware, UsersController.getMe);
 router.get('/connect', AuthController.getConnect);
 router.get('/disconnect', authMiddleware, AuthController.getDisconnect);
 router.get('/users/me', authMiddleware, UsersController.getMe);
+
+router.post('/files', authMiddleware, FilesController.postUpload);
 module.exports = router;
