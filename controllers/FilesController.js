@@ -1,11 +1,10 @@
-/* eslint-disable */
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
 import isValidObjectId from '../utils/objectIdvalidation';
-// import redisClient from '../utils/redisClient';
+import redisClient from '../utils/redis';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 
@@ -100,6 +99,90 @@ class FilesController {
       return res.status(500).json({
         error: 'Internal Server Error',
       });
+    }
+  }
+
+  static async getShow(req, res) {
+    const token = req.headers['x-token'];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const redisKey = `auth_${token}`;
+      const userId = await redisClient.get(redisKey);
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const fileId = req.params.id;
+      if (!ObjectId.isValid(fileId)) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      const db = dbClient.client.db(dbClient.databaseName);
+      const filesCollection = db.collection('files');
+      const file = await filesCollection.findOne({
+        _id: new ObjectId(fileId),
+        userId,
+      });
+
+      if (!file) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      return res.status(200).json(file);
+    } catch (error) {
+      console.error('Error retrieving file:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  // GET /files - Retrieve files by parentId with pagination
+  static async getIndex(req, res) {
+    const token = req.headers['x-token'];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const redisKey = `auth_${token}`;
+      const userId = await redisClient.get(redisKey);
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parentId = req.query.parentId || 0;
+      const page = parseInt(req.query.page, 10) || 0;
+      const limit = 20;
+      const skip = page * limit;
+
+      const db = dbClient.client.db(dbClient.databaseName);
+      const filesCollection = db.collection('files');
+
+      const query = {
+        userId,
+        parentId,
+      };
+
+      console.log('Query:', query);
+
+      const files = await filesCollection
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+
+      console.log('Files found:', files);
+
+      return res.status(200).json(files);
+    } catch (error) {
+      console.error('Error retrieving files:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
 }

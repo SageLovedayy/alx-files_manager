@@ -16,8 +16,15 @@ router.post('/users', UsersController.postNew);
 router.get('/users/me', authMiddleware, UsersController.getMe);
 
 router.get('/connect', AuthController.getConnect);
-router.get('/disconnect', authMiddleware, AuthController.getDisconnect);
+router.get(
+  '/disconnect',
+  authMiddleware,
+  AuthController.getDisconnect,
+);
 router.get('/users/me', authMiddleware, UsersController.getMe);
 
 router.post('/files', authMiddleware, FilesController.postUpload);
+
+router.get('/files/:id', authMiddleware, FilesController.getShow);
+router.get('/files', authMiddleware, FilesController.getIndex);
 module.exports = router;
