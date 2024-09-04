@@ -1,4 +1,3 @@
-/* eslint-disable */
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -8,6 +7,7 @@ import isValidObjectId from '../utils/objectIdvalidation';
 import redisClient from '../utils/redis';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
+const mime = require('mime-types');
 
 class FilesController {
   static async postUpload(req, res) {
@@ -271,6 +271,57 @@ class FilesController {
       return res.status(200).json(updatedFile.value);
     } catch (error) {
       console.error('Error in putUnpublish:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  static async getFile(req, res) {
+    const token = req.headers['x-token'];
+    const fileId = req.params.id;
+
+    if (!ObjectId.isValid(fileId)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    try {
+      const db = dbClient.client.db(dbClient.databaseName);
+      const filesCollection = db.collection('files');
+      const file = await filesCollection.findOne({
+        _id: new ObjectId(fileId),
+      });
+
+      if (!file) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      const redisKey = `auth_${token}`;
+      const userId = await redisClient.get(redisKey);
+
+      if (
+        !file.isPublic &&
+        (!userId || file.userId.toString() !== userId)
+      ) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      if (file.type === 'folder') {
+        return res
+          .status(400)
+          .json({ error: "A folder doesn't have content" });
+      }
+
+      if (!file.localPath || !fs.existsSync(file.localPath)) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      const mimeType =
+        mime.lookup(file.name) || 'application/octet-stream';
+
+      res.setHeader('Content-Type', mimeType);
+
+      return res.status(200).sendFile(file.localPath);
+    } catch (error) {
+      console.error('Error in getFile:', error);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
