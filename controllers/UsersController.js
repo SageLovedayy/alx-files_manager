@@ -22,7 +22,7 @@ class UsersController {
       const existingUser = await usersCollection.findOne({ email });
 
       if (existingUser) {
-        return res.status(400).json({ error: 'Already exists' });
+        return res.status(400).json({ error: 'Already exist' });
       }
 
       // Password hash using SHA1
@@ -39,7 +39,9 @@ class UsersController {
 
       // Return the new user with email and id
       const newUser = result.ops[0];
-      return res.status(201).json({ id: newUser._id, email: newUser.email });
+      return res
+        .status(201)
+        .json({ id: newUser._id, email: newUser.email });
     } catch (error) {
       console.error('Error creating user:', error);
       return res.status(500).json({ error: 'Internal Server Error' });
