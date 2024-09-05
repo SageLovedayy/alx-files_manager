@@ -18,12 +18,12 @@ class AuthController {
       'base64',
     ).toString('ascii');
 
-//    if (
-//      !credentials ||
-//      !/^[A-Za-z0-9+/=]+$/.test(credentials)
-//    ) {
-//      return res.status(401).json({ error: 'Unauthorized' });
-//    }
+    //    if (
+    //      !credentials ||
+    //      !/^[A-Za-z0-9+/=]+$/.test(credentials)
+    //    ) {
+    //      return res.status(401).json({ error: 'Unauthorized' });
+    //    }
 
     console.log('credentials', credentials);
 
