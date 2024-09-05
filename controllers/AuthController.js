@@ -12,9 +12,21 @@ class AuthController {
     }
 
     const base64Credentials = authHeader.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString(
-      'ascii',
-    );
+
+    const credentials = Buffer.from(
+      base64Credentials,
+      'base64',
+    ).toString('ascii');
+
+    if (
+      !credentials ||
+      !/^[A-Za-z0-9+/=]+$/.test(credentials)
+    ) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    console.log('credentials', credentials);
+
     const [email, password] = credentials.split(':');
 
     try {
@@ -41,7 +53,11 @@ class AuthController {
 
       // Store the token in Redis with a 24-hour expiration
       const redisKey = `auth_${token}`;
-      await redisClient.set(redisKey, user._id.toString(), 24 * 60 * 60);
+      await redisClient.set(
+        redisKey,
+        user._id.toString(),
+        24 * 60 * 60,
+      );
 
       return res.status(200).json({ token });
     } catch (error) {
